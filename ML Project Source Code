@@ -1,1 +1,135 @@
+#Comparative Analysis between Different Classification Techniques in Machine Learning Project
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix
+import ipywidgets as widgets
+from IPython.display import display
+import matplotlib.pyplot as plt
 
+# Load the SMS Spam Collection dataset
+df = pd.read_csv('/content/newsspam.csv', sep='\t', names=['label', 'text'])
+
+# Map labels to numeric values
+df['label'] = df['label'].map({'ham': 0, 'spam': 1})
+
+# Create a slider to control test size
+test_size_slider = widgets.FloatSlider(value=0.2, min=0.1, max=0.5, step=0.05, description='Test Size:')
+
+# Define learning rates
+learning_rates = [0.01, 0.001, 0.1, 0.9, 0.00000001]
+
+# Create a dropdown menu for learning rate
+learning_rate_dropdown = widgets.Dropdown(
+    options=learning_rates,
+    value=learning_rates[0],
+    description='Learning Rate:'
+)
+
+# Define activation functions
+activation_functions = ['logistic', 'tanh', 'relu']
+
+# Create a dropdown menu for activation function
+activation_function_dropdown = widgets.Dropdown(
+    options=activation_functions,
+    value=activation_functions[0],
+    description='Activation Function:'
+)
+
+# Define max_iter options
+max_iter_values = [100, 500, 1000, 5000, 10000]
+
+# Create a dropdown menu for max_iter
+max_iter_dropdown = widgets.Dropdown(
+    options=max_iter_values,
+    value=max_iter_values[2],
+    description='Max Iterations:'
+)
+
+# Store accuracy scores for each model and parameter setting
+accuracy_scores = {'Logistic Regression': [], 'Naive Bayes': [], 'MLP': []}
+iteration_count = 0  # Starting iteration count
+
+# Function to update models with new test size, learning rate, activation function, and max_iter
+def update_models(test_size, learning_rate, activation_function, max_iter):
+    global iteration_count
+    # Drop rows with missing values in the label column
+    df_cleaned = df.dropna(subset=['label'])
+
+    # Split the cleaned dataset into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(df_cleaned['text'].astype(str), df_cleaned['label'], test_size=test_size, random_state=42)
+
+    # Convert text data into bag-of-words representation
+    count_vector = CountVectorizer()
+    train = count_vector.fit_transform(X_train)
+    test = count_vector.transform(X_test)
+
+    # Train a Logistic Regression classifier
+    logistic_regression = LogisticRegression()
+    logistic_regression.fit(train, y_train)
+    predictions_logistic_regression = logistic_regression.predict(test)
+    accuracy_logistic_regression = accuracy_score(y_test, predictions_logistic_regression)
+    accuracy_scores['Logistic Regression'].append(accuracy_logistic_regression)
+
+    # Train a Multinomial Naive Bayes classifier
+    naive_bayes = MultinomialNB()
+    naive_bayes.fit(train, y_train)
+    predictions_naive_bayes = naive_bayes.predict(test)
+    accuracy_naive_bayes = accuracy_score(y_test, predictions_naive_bayes)
+    accuracy_scores['Naive Bayes'].append(accuracy_naive_bayes)
+
+    # Train a Multilayer Perceptron classifier with the selected activation function and max_iter
+    mlp = MLPClassifier(activation=activation_function, max_iter=max_iter, learning_rate_init=learning_rate, hidden_layer_sizes=(3, 3))
+    mlp.fit(train, y_train)
+    predictions_mlp = mlp.predict(test)
+    accuracy_mlp = accuracy_score(y_test, predictions_mlp)
+    accuracy_scores['MLP'].append(accuracy_mlp)
+
+    iteration_count += 1  # Increment iteration count after updating models
+
+    # Print accuracies and confusion matrices
+    print(f"\nAccuracy for Logistic Regression = {accuracy_logistic_regression:.6f}%")
+    print(f"Accuracy for Naive Bayes = {accuracy_naive_bayes:.6f}%")
+    print(f"Accuracy for MLP with {activation_function} activation function = {accuracy_mlp:.6f}%")
+
+    print("\nConfusion Matrix for Logistic Regression:")
+    print(confusion_matrix(y_test, predictions_logistic_regression))
+    print("\nConfusion Matrix for Naive Bayes:")
+    print(confusion_matrix(y_test, predictions_naive_bayes))
+    print("\nConfusion Matrix for MLP:")
+    print(confusion_matrix(y_test, predictions_mlp))
+
+# Function to plot comparison curve
+def plot_comparison_curve():
+    plt.figure(figsize=(8, 6))
+    for model, scores in accuracy_scores.items():
+        plt.plot(range(iteration_count), scores, label=model)
+    plt.xlabel('Parameter Setting')
+    plt.ylabel('Accuracy')
+    plt.title('Model Comparison')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+# Create a button to trigger the update and plot the comparison curve
+update_and_plot_button = widgets.Button(description='Update Models and Plot')
+
+def on_button_click_update_and_plot(b):
+    test_size = test_size_slider.value
+    learning_rate = learning_rate_dropdown.value
+    activation_function = activation_function_dropdown.value
+    max_iter = max_iter_dropdown.value
+    update_models(test_size, learning_rate, activation_function, max_iter)
+    plot_comparison_curve()
+
+update_and_plot_button.on_click(on_button_click_update_and_plot)
+
+# Display the widgets and button for updating and plotting
+display(test_size_slider)
+display(learning_rate_dropdown)
+display(activation_function_dropdown)
+display(max_iter_dropdown)
+display(update_and_plot_button)
